@@ -1,9 +1,5 @@
-resource "random_id" "bucket_prefix" {
-  byte_length = 8
-}
-
 locals {
-  common_name = "${random_id.bucket_prefix.hex}-standard-bucket"
+  common_name = "finetuning-data-bucket"
 
   bucket_name    = local.common_name
   project_number = var.project_number
