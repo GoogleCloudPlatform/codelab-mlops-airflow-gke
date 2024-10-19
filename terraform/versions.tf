@@ -4,7 +4,7 @@ terraform {
       source  = "hashicorp/google"
       version = "5.40.0"
     }
-/*     kubernetes = {
+    /*     kubernetes = {
       source = "hashicorp/kubernetes"
     }
     kubectl = {
