@@ -4,13 +4,13 @@
 variable "project_id" {
   description = "The project ID to host the cluster in"
   type        = string
- default     = "mlops-airflow2"
+  default     = "mlops-airflow2"
 }
 
 variable "project_number" {
   description = "The project number to host the cluster in"
   type        = string
- default     = "888754845476"
+  default     = "888754845476"
 }
 
 variable "region" {
