@@ -1,0 +1,5 @@
+pandas
+scikit-learn
+transformers
+gcsfs
+google-cloud-storage
