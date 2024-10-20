@@ -4,7 +4,7 @@ from transformers import AutoTokenizer
 import gcsfs
 
 # Constants
-BUCKET_DATA_URL = "/mnt/data/rotten_tomatoes_movie_reviews.csv"  # Update this path for local or GCS
+BUCKET_DATA_URL = "gs://finetuning-data-bucket/rotten_tomatoes_movie_reviews.csv"  # Update this path for local or GCS
 PREPROCESSED_DATA_URL = "gs://finetuning-data-bucket/preprocessed_data.txt"
 
 # Load the dataset

@@ -1,3 +1,9 @@
+locals {
+  ns_name = "mlops"
+  #  model_id              = "google/gemma-2-2b-it"    //feel free to replace with another LLM 
+  artifactory_repo_name = "llm-finetuning"
+}
+
 module "gcs" {
   source = "./modules/gcs"
 
@@ -5,3 +11,20 @@ module "gcs" {
   project_number = var.project_number
   region         = var.region
 }
+
+module "gke" {
+  source = "./modules/gke"
+
+  project_id = var.project_id
+  region     = var.region
+}
+
+module "data-pipeline" {
+  source                = "./modules/data-pipeline-service"
+  project_id            = var.project_id
+  region     = var.region
+  ns_name               = local.ns_name
+  artifactory_repo_name = local.artifactory_repo_name
+
+  depends_on = [module.gke]
+} 

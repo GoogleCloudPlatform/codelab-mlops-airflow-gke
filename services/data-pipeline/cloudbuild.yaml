@@ -1,10 +1,11 @@
+# Build image and push to existing artifact registry
 steps:
   - name: gcr.io/cloud-builders/docker
     args:
       - build
       - '--no-cache'
       - '-t'
-      - us-central1-docker.pkg.dev/$_PROJECT_ID/$_ARTIFACT_REGISTRY_REPO/$_SERVICE_NAME
+      - $_DEPLOY_REGION-docker.pkg.dev/$_PROJECT_ID/$_ARTIFACT_REGISTRY_REPO/$_SERVICE_NAME
       - .
       - '-f'
       - Dockerfile
@@ -12,24 +13,13 @@ steps:
   - name: gcr.io/cloud-builders/docker
     args:
       - push
-      - europe-west3-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO/$_SERVICE_NAME
+      - $_DEPLOY_REGION-docker.pkg.dev/$PROJECT_ID/$_ARTIFACT_REGISTRY_REPO/$_SERVICE_NAME
     id: Push-image
-  # - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-  #   entrypoint: gcloud
-  #   args:
-  #     - 'run'
-  #     - 'deploy'
-  #     - '$_SERVICE_NAME'
-  #     - '--image=europe-west3-docker.pkg.dev/$_PROJECT_ID/$_ARTIFACT_REGISTRY_REPO/$_SERVICE_NAME'
-  #     - '--region=$_DEPLOY_REGION'
-  #     - '--platform=managed'
-  #     - '--allow-unauthenticated'
-  #   id: Deploy-image
 images:
-  - europe-west3-docker.pkg.dev/$_PROJECT_ID/$_ARTIFACT_REGISTRY_REPO/$_SERVICE_NAME
+  - $_DEPLOY_REGION-docker.pkg.dev/$_PROJECT_ID/$_ARTIFACT_REGISTRY_REPO/$_SERVICE_NAME
 substitutions:
   _PROJECT_ID: mlops-airflow2
-  _SERVICE_NAME: data-prep
+  _SERVICE_NAME: data-pipeline-service
   _DEPLOY_REGION: us-central1
   _ARTIFACT_REGISTRY_REPO: llm-finetuning
 
