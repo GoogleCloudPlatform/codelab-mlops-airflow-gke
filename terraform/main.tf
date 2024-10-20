@@ -21,10 +21,12 @@ module "gke" {
 
 module "data-pipeline" {
   source                = "./modules/data-pipeline-service"
+  
+  hf_token   = base64encode(var.hf_token)
   project_id            = var.project_id
   region     = var.region
   ns_name               = local.ns_name
   artifactory_repo_name = local.artifactory_repo_name
-
+  
   depends_on = [module.gke]
 } 

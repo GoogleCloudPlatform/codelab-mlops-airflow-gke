@@ -35,22 +35,19 @@ resource "google_service_account_iam_member" "this" {
 # Grant the Service Account Access to GCS Bucket
 resource "google_storage_bucket_iam_member" "bucket_access" {
   bucket = "finetuning-data-bucket"  # Replace with your actual bucket name
-  role   = "roles/storage.objectViewer"
+  role   = "roles/storage.objectUser"
   member = "serviceAccount:${local.sa_name}@${var.project_id}.iam.gserviceaccount.com"
 }
 
+# Create a Kubernetes Job for data pipeline 
 resource "kubectl_manifest" "this" {
   yaml_body = <<YAML
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: "${local.service_name}"
+  name: "${local.service_name}-job"
   namespace: ${var.ns_name}
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: "${local.service_name}"
   template:
     metadata:
       labels:
@@ -61,9 +58,25 @@ spec:
       - name: "${local.service_name}"
         image: ${var.region}-docker.pkg.dev/${var.project_id}/${var.artifactory_repo_name}/${local.service_name}:latest
         imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "1"
+            memory: "8Gi"  # Adjust if needed
+          limits:
+            cpu: "2"
+            memory: "16Gi"  # Adjust if needed
         ports:
         - name: server-port
           containerPort: 8080
+        env:
+        # HuggingFace access token as k8s secret
+        - name: HF_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: hf-demo
+              key: HUGGING_FACE_TOKEN
+      restartPolicy: Never
+  backoffLimit: 1  # Number of retries if the job fails
 YAML
 
   depends_on = [
@@ -71,23 +84,70 @@ YAML
   ]
 }
 
-resource "kubectl_manifest" "service" {
-  yaml_body = <<YAML
-apiVersion: v1
-kind: Service
-metadata:
-  name: "${local.service_name}-svc"
-  namespace: ${var.ns_name}
-spec:
-  type: ClusterIP
-  selector:
-    app: "${local.service_name}"
-  ports:
-    - protocol: TCP
-      port: 8080
-      targetPort: 8080
+# resource "kubectl_manifest" "this" {
+#   yaml_body = <<YAML
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: "${local.service_name}"
+#   namespace: ${var.ns_name}
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: "${local.service_name}"
+#   template:
+#     metadata:
+#       labels:
+#         app: "${local.service_name}"
+#     spec:
+#       serviceAccountName: ${local.sa_name}
+#       containers:
+#       - name: "${local.service_name}"
+#         image: ${var.region}-docker.pkg.dev/${var.project_id}/${var.artifactory_repo_name}/${local.service_name}:latest
+#         imagePullPolicy: Always
+#         resources:
+#           requests:
+#             cpu: "1"
+#             memory: "8Gi"  # Adjust if needed
+#           limits:
+#             cpu: "2"
+#             memory: "16Gi"  # Adjust if needed
+#         ports:
+#         - name: server-port
+#           containerPort: 8080
+#         env:
+#         # HuggingFace access token as k8s secret
+#         - name: HF_TOKEN
+#           valueFrom:
+#             secretKeyRef:
+#               name: hf-demo
+#               key: HUGGING_FACE_TOKEN
+#       restartPolicy: Never 
+# YAML
 
-YAML
+#   depends_on = [
+#     google_service_account_iam_member.this
+#   ]
+# }
 
-  depends_on = [kubectl_manifest.this]
-}
+# resource "kubectl_manifest" "service" {
+#   yaml_body = <<YAML
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: "${local.service_name}-svc"
+#   namespace: ${var.ns_name}
+# spec:
+#   type: ClusterIP
+#   selector:
+#     app: "${local.service_name}"
+#   ports:
+#     - protocol: TCP
+#       port: 8080
+#       targetPort: 8080
+
+# YAML
+
+#   depends_on = [kubectl_manifest.this]
+# }

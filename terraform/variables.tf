@@ -18,3 +18,9 @@ variable "region" {
   type        = string
   default     = "us-central1"
 }
+
+variable "hf_token" {
+  description = "HuggingFace Access Token"
+  type        = string
+  default     = "your-access-token" // insert your Access Token here
+}

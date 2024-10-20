@@ -17,3 +17,7 @@ variable "region" {
   description = "The region to host the cluster in"
   type        = string
 }
+
+variable "hf_token" {
+  description = "HuggingFace Access Token in base64 encoded form"
+}
