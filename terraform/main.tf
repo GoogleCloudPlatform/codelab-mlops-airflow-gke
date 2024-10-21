@@ -30,3 +30,15 @@ module "data-pipeline" {
   
   depends_on = [module.gke]
 } 
+
+module "finetuning" {
+  source                = "./modules/finetuning-service"
+  
+  hf_token   = base64encode(var.hf_token)
+  ns_name    = local.ns_name
+  project_id            = var.project_id
+  region     = var.region
+  artifactory_repo_name = local.artifactory_repo_name
+  
+  depends_on = [module.gke, module.data-pipeline]
+} 
