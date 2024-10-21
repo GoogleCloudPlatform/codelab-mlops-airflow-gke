@@ -1,6 +1,9 @@
 torch
 transformers
 datasets
-accelerate
 trl
 gcsfs
+bitsandbytes
+peft
+accelerate
+google-cloud-storage

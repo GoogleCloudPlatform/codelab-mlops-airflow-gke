@@ -62,9 +62,11 @@ spec:
           requests:
             cpu: "1"
             memory: "8Gi"  # Adjust if needed
+            nvidia.com/gpu: "1" # GPU needed for finetuning
           limits:
             cpu: "2"
             memory: "16Gi"  # Adjust if needed
+            nvidia.com/gpu: "1" # GPU needed for finetuning
         ports:
         - name: server-port
           containerPort: 8000
@@ -75,6 +77,8 @@ spec:
             secretKeyRef:
               name: hf-demo
               key: HUGGING_FACE_TOKEN
+      nodeSelector:
+        cloud.google.com/gke-accelerator: nvidia-l4  # Adjust desired GPU type if needed
       restartPolicy: Never
   backoffLimit: 3  # Number of retries if the job fails
 YAML

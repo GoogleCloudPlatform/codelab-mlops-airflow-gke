@@ -22,5 +22,5 @@ variable "region" {
 variable "hf_token" {
   description = "HuggingFace Access Token"
   type        = string
-  default     = "your-access-token" // insert your Access Token here
+  default     = "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" // insert your Access Token here
 }
