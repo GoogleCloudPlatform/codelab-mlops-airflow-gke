@@ -76,7 +76,7 @@ spec:
               name: hf-demo
               key: HUGGING_FACE_TOKEN
       restartPolicy: Never
-  backoffLimit: 1  # Number of retries if the job fails
+  backoffLimit: 3  # Number of retries if the job fails
 YAML
 
   depends_on = [
