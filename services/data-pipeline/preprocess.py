@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from sklearn.model_selection import train_test_split
 import gcsfs
@@ -7,13 +8,13 @@ from transformers import AutoTokenizer
 from datasets import Dataset
 
 # Constants
-BUCKET_DATA_URL = "gs://finetuning-data-bucket/rotten_tomatoes_movie_reviews.csv"
-PREPROCESSED_DATA_URL = "gs://finetuning-data-bucket/preprocessed_data.txt"
-TOKENIZED_DATA_URL = "gs://finetuning-data-bucket/tokenized_data.jsonl"
-TRAIN_DATA_URL = "gs://finetuning-data-bucket/train_data.jsonl"
-TEST_DATA_URL = "gs://finetuning-data-bucket/test_data.jsonl"
-MAX_ROWS = 10  # Process a limited number of rows, for testing the pipeline reduced to small amount, increase later
-MODEL_ID = "google/gemma-2-2b"
+BUCKET_DATA_URL = os.getenv("BUCKET_DATA_URL", "gs://finetuning-data-bucket/rotten_tomatoes_movie_reviews.csv")
+PREPROCESSED_DATA_URL = os.getenv("PREPROCESSED_DATA_URL", "gs://finetuning-data-bucket/preprocessed_data.txt")
+TOKENIZED_DATA_URL = os.getenv("TOKENIZED_DATA_URL", "gs://finetuning-data-bucket/tokenized_data.jsonl")
+TRAIN_DATA_URL = os.getenv("TRAIN_DATA_URL", "gs://finetuning-data-bucket/train_data.jsonl")
+TEST_DATA_URL = os.getenv("TEST_DATA_URL", "gs://finetuning-data-bucket/test_data.jsonl")
+MAX_ROWS = os.getenv("MAX_ROWS", 10)  # Process a limited number of rows, for testing the pipeline reduced to small amount, increase later
+MODEL_ID = os.getenv("MODEL_ID", "google/gemma-2-2b")
 
 # Load the dataset
 print(f"Loading dataset from {BUCKET_DATA_URL}...")
