@@ -1,5 +1,7 @@
-pandas
-scikit-learn
+torch
 transformers
+datasets
+pandas
 gcsfs
+scikit-learn
 google-cloud-storage
