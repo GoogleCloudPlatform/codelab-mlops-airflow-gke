@@ -17,7 +17,9 @@ COPY finetune.py .
 
 # Set the environment variable to ensure output is flushed
 ENV PYTHONUNBUFFERED 1
-
+ENV MODEL_ID "google/gemma-2-2b"
+ENV GCS_BUCKET "finetuning-data-bucket"
+ 
 # Set the command to run the finetuning script with CUDA device
 CMD ["python3", "finetune.py", "--device", "cuda"]
 
