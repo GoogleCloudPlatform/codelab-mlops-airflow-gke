@@ -2,8 +2,8 @@ import os
 import kagglehub
 from google.cloud import storage
 
-KAGGLE_USERNAME = "laurentgrangeau"
-KAGGLE_KEY = "c38a65c9f6e37ea0c29f07f078a24764"
+KAGGLE_USERNAME = "YOUR_KAGGLE_USERNAME_HERE"
+KAGGLE_KEY = "YOUR_KAGGLE_KEY_HERE"
 GCS_BUCKET = os.getenv("GCS_BUCKET", "mlops-codelab")
 
 storage_client = storage.Client(project="mlops-codelab")
