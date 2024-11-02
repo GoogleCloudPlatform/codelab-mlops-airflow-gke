@@ -3,7 +3,7 @@ resource "kubectl_manifest" "secret" {
     apiVersion: v1    
     kind: Secret
     metadata:
-        name: hf-demo
+        name: hf-secret
         namespace: "${var.ns_name}"
     type: Opaque
     data:
