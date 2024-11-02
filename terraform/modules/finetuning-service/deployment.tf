@@ -10,7 +10,6 @@ resource "google_service_account" "this" {
 
 }
 
-
 resource "kubectl_manifest" "sa" {
   yaml_body = <<YAML
 apiVersion: v1
@@ -75,12 +74,11 @@ spec:
         - name: HF_TOKEN
           valueFrom:
             secretKeyRef:
-              name: hf-demo
+              name: hf-secret
               key: HUGGING_FACE_TOKEN
       nodeSelector:
         cloud.google.com/gke-accelerator: nvidia-l4  # Adjust desired GPU type if needed
-      restartPolicy: Never
-  backoffLimit: 3  # Number of retries if the job fails
+      restartPolicy: OnFailure
 YAML
 
   depends_on = [
