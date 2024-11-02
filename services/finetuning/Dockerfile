@@ -23,18 +23,19 @@ ENV GCS_BUCKET "finetuning-data-bucket"
 # Set the command to run the finetuning script with CUDA device
 CMD ["python3", "finetune.py", "--device", "cuda"]
 
+# FROM nvidia/cuda:12.6.1-runtime-ubuntu22.04
 
+# RUN apt-get update && \
+#     apt-get -y --no-install-recommends install python3-dev gcc python3-pip git && \
+#     rm -rf /var/lib/apt/lists/*
 
-# FROM python:3.11
+# RUN pip3 install --no-cache-dir \
+#     accelerate==0.30.1 bitsandbytes==0.43.1 \
+#     datasets==2.19.1 transformers==4.41.0 \
+#     peft==0.11.1 trl==0.8.6 torch==2.3.0
 
-# WORKDIR /app
+# COPY finetune.py /finetune.py
 
-# COPY requirements.txt ./
+# ENV PYTHONUNBUFFERED 1
 
-# RUN pip install --no-cache-dir -r requirements.txt
-
-# COPY finetune.py .
-
-# #EXPOSE 8080
-
-# CMD ["python", "finetune.py"]
+# CMD python3 /finetune.py --device cuda
