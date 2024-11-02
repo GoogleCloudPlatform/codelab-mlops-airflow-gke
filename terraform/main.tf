@@ -1,6 +1,5 @@
 locals {
   ns_name = "mlops"
-  #  model_id              = "google/gemma-2-2b-it"    //feel free to replace with another LLM 
   artifactory_repo_name = "llm-finetuning"
 }
 
