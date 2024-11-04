@@ -5,7 +5,7 @@ variable "project_id" {
 
 variable "artifactory_repo_name" {
   description = "The artifact registry name where image is stored"
-  type = string
+  type        = string
 }
 
 variable "ns_name" {

@@ -7,9 +7,7 @@ resource "google_service_account" "this" {
   project      = var.project_id
   account_id   = local.sa_name
   display_name = "Terraform-managed service account for finetuning service"
-
 }
-
 
 resource "kubectl_manifest" "sa" {
   yaml_body = <<YAML
@@ -31,10 +29,9 @@ resource "google_service_account_iam_member" "this" {
   depends_on = [kubectl_manifest.sa]
 }
 
-
 # Grant the Service Account Access to GCS Bucket
 resource "google_storage_bucket_iam_member" "bucket_access" {
-  bucket = "finetuning-data-bucket"  # Replace with your actual bucket name
+  bucket = "finetuning-data-bucket" # Replace with your actual bucket name
   role   = "roles/storage.objectUser"
   member = "serviceAccount:${local.sa_name}@${var.project_id}.iam.gserviceaccount.com"
 }
@@ -75,12 +72,11 @@ spec:
         - name: HF_TOKEN
           valueFrom:
             secretKeyRef:
-              name: hf-demo
+              name: hf-secret
               key: HUGGING_FACE_TOKEN
       nodeSelector:
         cloud.google.com/gke-accelerator: nvidia-l4  # Adjust desired GPU type if needed
-      restartPolicy: Never
-  backoffLimit: 3  # Number of retries if the job fails
+      restartPolicy: OnFailure
 YAML
 
   depends_on = [

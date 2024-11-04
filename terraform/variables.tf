@@ -1,6 +1,5 @@
 ## These variables will be requested when running terraform. Please insert the appropriate information in CLI.
 ## Alternatively, you can uncomment the defaults here and replace with the appropriate information.
-
 variable "project_id" {
   description = "The project ID to host the cluster in"
   type        = string
@@ -22,5 +21,4 @@ variable "region" {
 variable "hf_token" {
   description = "HuggingFace Access Token"
   type        = string
-#  default     = "your-access-token"   // insert your Access Token here
 }

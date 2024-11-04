@@ -7,18 +7,10 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy requirements.txt into the container
-COPY requirements.txt .
+COPY requirements.txt ./
 
 # Install Python packages from requirements.txt
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Copy your finetune script into the container
-COPY finetune.py .
-
-# Set the environment variable to ensure output is flushed
-ENV PYTHONUNBUFFERED 1
-ENV MODEL_ID "google/gemma-2-2b"
-ENV GCS_BUCKET "finetuning-data-bucket"
- 
 # Set the command to run the finetuning script with CUDA device
-CMD ["python3", "finetune.py", "--device", "cuda"]
+CMD ["python3", "-m", "vllm.entrypoints.api_server", "--model=/finetuned_model", "--tokenizer=/finetuned_model"]

@@ -4,6 +4,5 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: "${var.ns_name}"
- 
 YAML
 }
