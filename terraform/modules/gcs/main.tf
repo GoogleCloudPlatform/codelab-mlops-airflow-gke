@@ -3,8 +3,6 @@ locals {
 
   bucket_name    = local.common_name
   project_number = var.project_number
-
-#  zones = ["${var.region}-a", "${var.region}-b"]
 }
 
 data "google_client_config" "default" {}

@@ -1,5 +1,5 @@
 locals {
-  ns_name = "mlops"
+  ns_name               = "mlops"
   artifactory_repo_name = "llm-finetuning"
 }
 
@@ -19,25 +19,25 @@ module "gke" {
 }
 
 module "data-pipeline" {
-  source                = "./modules/data-pipeline-service"
-  
-  hf_token   = base64encode(var.hf_token)
+  source = "./modules/data-pipeline-service"
+
+  hf_token              = base64encode(var.hf_token)
   project_id            = var.project_id
-  region     = var.region
+  region                = var.region
   ns_name               = local.ns_name
   artifactory_repo_name = local.artifactory_repo_name
-  
+
   depends_on = [module.gke]
-} 
+}
 
 module "finetuning" {
-  source                = "./modules/finetuning-service"
-  
-  hf_token   = base64encode(var.hf_token)
-  ns_name    = local.ns_name
+  source = "./modules/finetuning-service"
+
+  hf_token              = base64encode(var.hf_token)
+  ns_name               = local.ns_name
   project_id            = var.project_id
-  region     = var.region
+  region                = var.region
   artifactory_repo_name = local.artifactory_repo_name
-  
+
   depends_on = [module.gke, module.data-pipeline]
 } 
