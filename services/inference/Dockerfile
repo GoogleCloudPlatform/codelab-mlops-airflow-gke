@@ -10,7 +10,7 @@ RUN apt-get update && \
 COPY requirements.txt ./
 
 # Install Python packages from requirements.txt
-RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && pip3 install --no-cache-dir -r requirements.txt
 
 # Set the command to run the finetuning script with CUDA device
 CMD ["python3", "-m", "vllm.entrypoints.api_server", "--model=/finetuned_model", "--tokenizer=/finetuned_model"]

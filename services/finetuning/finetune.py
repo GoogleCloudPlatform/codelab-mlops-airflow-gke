@@ -1,25 +1,26 @@
 import os
 import torch
-from datasets import load_dataset, Dataset
+from datasets import load_dataset
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     BitsAndBytesConfig,
-    HfArgumentParser,
     TrainingArguments,
-    pipeline,
-    logging,
 )
-from peft import LoraConfig, PeftModel
+from peft import LoraConfig
 
 from trl import SFTTrainer
 from google.cloud import storage
 
 # Configuration Parameters
-model_name = os.getenv("MODEL_ID", "google/gemma-2b")
-prepared_data_url = os.getenv("PREPARED_DATA_URL", "gs://finetuning-data-bucket/prepared_data.jsonl")
+PREPARED_DATASET_NAME = os.getenv("PREPARED_DATA_URL", "prepared_data.jsonl")
+
+PREPARED_DATAS_URL = os.getenv("PREPARED_DATA_URL", "gs://finetuning-data-bucket/prepared_data.jsonl")
 gcs_bucket = os.getenv("GCS_BUCKET", "finetuning-data-bucket")
 new_model_name = os.getenv("NEW_MODEL", "fine_tuned_model")
+MODEL_ID = os.getenv("MODEL_ID", "google/gemma-2b")
+
+PREPARED_DATASET_URL = f"gs://{BUCKET_DATA_NAME}/{PREPARED_DATASET_NAME}"
 
 # LoRA attention dimension
 lora_r = int(os.getenv("LORA_R", 4))
@@ -166,7 +167,6 @@ training_arguments = TrainingArguments(
     learning_rate=learning_rate,
     weight_decay=weight_decay,
     fp16=fp16,
-#    bf16=bf16,
     max_grad_norm=max_grad_norm,
     max_steps=max_steps,
     warmup_ratio=warmup_ratio,
