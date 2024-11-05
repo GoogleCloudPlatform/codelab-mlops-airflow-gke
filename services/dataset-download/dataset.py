@@ -6,21 +6,19 @@ KAGGLE_USERNAME = os.getenv("KAGGLE_USERNAME")
 KAGGLE_KEY = os.getenv("KAGGLE_KEY")
 GCS_BUCKET = os.getenv("GCS_BUCKET")
 
-def upload_files(bucket_name, source_folder):
+def upload_blob(bucket_name, source_file_name, destination_blob_name):
+    """Uploads a file to the bucket."""
     storage_client = storage.Client()
-    bucket = storage_client.get_bucket(bucket_name)
-
-    for root, _, files in os.walk(source_folder):
-        for file in files:
-            local_file_path = os.path.join(root, file)
-            gcs_file_path = os.path.relpath(local_file_path, source_folder)
-            blob = bucket.blob(gcs_file_path)
-            blob.upload_from_filename(local_file_path)
-            print(f"Uploaded {local_file_path} to gs://{bucket_name}/{gcs_file_path}")
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(destination_blob_name)
+    blob.upload_from_filename(source_file_name)
+    print(f"File {source_file_name} uploaded to {destination_blob_name}.")
 
 # Download latest version
 path = kagglehub.dataset_download("priyamchoksi/rotten-tomato-movie-reviews-1-44m-rows")
 
 print("Path to dataset files:", path)
+destination_blob_name = "rotten_tomatoes_movie_reviews.csv"
+source_file_name = f"{path}/{destination_blob_name}"
 
-upload_files(GCS_BUCKET, path)
+upload_blob(GCS_BUCKET, source_file_name, destination_blob_name)
