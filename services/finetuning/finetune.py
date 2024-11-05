@@ -13,11 +13,10 @@ from trl import SFTTrainer
 from google.cloud import storage
 
 # Configuration Parameters
+BUCKET_DATA_NAME = os.getenv("BUCKET_DATA_NAME")
 PREPARED_DATASET_NAME = os.getenv("PREPARED_DATA_URL", "prepared_data.jsonl")
 
-PREPARED_DATAS_URL = os.getenv("PREPARED_DATA_URL", "gs://finetuning-data-bucket/prepared_data.jsonl")
-gcs_bucket = os.getenv("GCS_BUCKET", "finetuning-data-bucket")
-new_model_name = os.getenv("NEW_MODEL", "fine_tuned_model")
+NEW_MODEL_NAME = os.getenv("NEW_MODEL_NAME", "fine_tuned_model")
 MODEL_ID = os.getenv("MODEL_ID", "google/gemma-2b")
 
 PREPARED_DATASET_URL = f"gs://{BUCKET_DATA_NAME}/{PREPARED_DATASET_NAME}"
@@ -103,8 +102,8 @@ packing = False
 device_map = {'':torch.cuda.current_device()}
 
 # Load the prepared dataset from GCS
-print(f"Loading dataset from {prepared_data_url}...")
-dataset = load_dataset("json", data_files=prepared_data_url, split="train")
+print(f"Loading dataset from {PREPARED_DATASET_URL}...")
+dataset = load_dataset("json", data_files=PREPARED_DATASET_URL, split="train")
 print("Dataset loaded successfully.")
 
 # Load tokenizer and model with QLoRA configuration
@@ -128,7 +127,7 @@ if compute_dtype == torch.float16 and use_4bit:
 # Load the model
 print("Loading model...")
 model = AutoModelForCausalLM.from_pretrained(
-    model_name,
+    NEW_MODEL_NAME,
     quantization_config=bnb_config,
     device_map=device_map,
     torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
@@ -139,7 +138,7 @@ print("Model loaded successfully.")
 
 # Load tokenizer
 print("Loading tokenizer...")
-tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(NEW_MODEL_NAME, trust_remote_code=True)
 tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = "right" # Fix weird overflow issue with fp16 training
 print("Tokenizer loaded successfully!")
@@ -213,13 +212,13 @@ def upload_to_gcs(bucket_name, model_dir):
         for file in files:
             local_file_path = os.path.join(root, file)
             gcs_file_path = os.path.relpath(local_file_path, model_dir)
-            blob = bucket.blob(os.path.join(new_model_name, gcs_file_path))  # Use new_model_name
+            blob = bucket.blob(os.path.join(NEW_MODEL_NAME, gcs_file_path))  # Use new_model_name
             blob.upload_from_filename(local_file_path)
-            print(f"Uploaded {local_file_path} to gs://{bucket_name}/{new_model_name}/{gcs_file_path}")
+            print(f"Uploaded {local_file_path} to gs://{bucket_name}/{NEW_MODEL_NAME}/{gcs_file_path}")
 
 # Upload the fine-tuned model and tokenizer to GCS
-upload_to_gcs(gcs_bucket, output_dir)
-print(f"Fine-tuned model {new_model_name} successfully uploaded to GCS.")
+upload_to_gcs(BUCKET_DATA_NAME, output_dir)
+print(f"Fine-tuned model {NEW_MODEL_NAME} successfully uploaded to GCS.")
 
 
 
@@ -242,7 +241,7 @@ def download_model_from_gcs(bucket_name, model_gcs_path, local_dir):
         print(f"Downloaded {blob.name} to {local_file_path}")
 
 # Download the model from GCS
-download_model_from_gcs(gcs_bucket, MODEL_PATH_GCS, MODEL_LOCAL_DIR)
+download_model_from_gcs(BUCKET_DATA_NAME, MODEL_PATH_GCS, MODEL_LOCAL_DIR)
 
 # Load the tokenizer and model from the local directory
 print("Loading tokenizer and model from local directory...")
