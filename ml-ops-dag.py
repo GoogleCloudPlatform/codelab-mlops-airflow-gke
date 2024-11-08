@@ -30,7 +30,7 @@ with DAG(dag_id="mlops-dag",
             env_vars={
                     "KAGGLE_USERNAME":KAGGLE_USERNAME,
                     "KAGGLE_KEY":KAGGLE_KEY,
-                    "GCS_BUCKET":BUCKET_DATA_NAME
+                    "BUCKET_DATA_NAME":BUCKET_DATA_NAME
             }
         )
 
@@ -67,7 +67,7 @@ with DAG(dag_id="mlops-dag",
             }
         )
 
-        # Step 4: Run GKEJob for model serving
+        # Step 4: Run GKEJob for model evaluation
         model_evaluation = DummyOperator(
             task_id="model_evaluation_task"
         )
@@ -79,15 +79,13 @@ with DAG(dag_id="mlops-dag",
             image="us-central1-docker.pkg.dev/mlops-codelab-440409/mlops-airflow-repo/inference@sha256:e8d7a7cb897165f0ef484d2e6b7669df6b2c053bef3497327beb66a3b0da72f8",
             name="model-serving",
             service_account_name="airflow-mlops-sa",
-            startup_timeout_seconds=600,
             container_resources=k8s_models.V1ResourceRequirements(
                     requests={"cpu": "1", "memory": "8Gi", "nvidia.com/gpu": "1"},
                     limits={"cpu": "2", "memory": "16Gi", "nvidia.com/gpu": "1"}
             ),
             env_vars={
-                    "GCS_BUCKET":BUCKET_DATA_NAME,
+                    "BUCKET_DATA_NAME":BUCKET_DATA_NAME,
                     "PREPARED_DATA_URL":"gs://mlops-airflow-model-489c/prepared_data.jsonl",
-                    "HF_TOKEN":HF_TOKEN
             }
         )
 
