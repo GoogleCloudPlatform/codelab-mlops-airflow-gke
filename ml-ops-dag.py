@@ -16,15 +16,13 @@ KAGGLE_KEY = Variable.get("KAGGLE_KEY")
 JOB_NAMESPACE = Variable.get("JOB_NAMESPACE", default_var="airflow")
 
 with DAG(dag_id="mlops-dag",
-            start_date=datetime(2024,8,1),
-            schedule_interval="@hourly",
             catchup=False) as dag:
 
         # Step 1: Fetch raw data to GCS Bucket
         dataset_download = KubernetesPodOperator(
             task_id="dataset_download_task",
             namespace=JOB_NAMESPACE,
-            image="us-central1-docker.pkg.dev/mlops-codelab-440409/mlops-airflow-repo/dataset-download@sha256:b678e1a58f368a79960596638bcd148fde960d979f52803431b9cf54965fbfb7",
+            image="us-central1-docker.pkg.dev/{{ var.value.GCP_PROJECT_ID }}/mlops-airflow-repo/dataset-download:latest",
             name="dataset-download",
             service_account_name="airflow-mlops-sa",
             env_vars={
@@ -38,7 +36,7 @@ with DAG(dag_id="mlops-dag",
         data_preparation = KubernetesPodOperator(
             task_id="data_pipeline_task",
             namespace=JOB_NAMESPACE,
-            image="us-central1-docker.pkg.dev/mlops-codelab-440409/mlops-airflow-repo/data-pipeline@sha256:2635b79afb86d16324adeb9f27a9824dec78866edcba4c06f9dc1cb6a54cdaa0",
+            image="us-central1-docker.pkg.dev/{{ var.value.GCP_PROJECT_ID }}/mlops-airflow-repo/data-pipeline:latest",
             name="data-preparation",
             service_account_name="airflow-mlops-sa",
             env_vars={
@@ -53,7 +51,7 @@ with DAG(dag_id="mlops-dag",
         fine_tuning = KubernetesPodOperator(
             task_id="fine_tuning_task",
             namespace=JOB_NAMESPACE,
-            image="us-central1-docker.pkg.dev/mlops-codelab-440409/mlops-airflow-repo/finetuning@sha256:48c56aa75cbae11c8ee57a34973edf2bc4364a6fe66cbe1887cb34f98fc382c2",
+            image="us-central1-docker.pkg.dev/{{ var.value.GCP_PROJECT_ID }}/mlops-airflow-repo/finetuning:latest",
             name="fine-tuning",
             service_account_name="airflow-mlops-sa",
             startup_timeout_seconds=600,
@@ -76,7 +74,7 @@ with DAG(dag_id="mlops-dag",
         model_serving = KubernetesPodOperator(
             task_id="model_serving",
             namespace=JOB_NAMESPACE,
-            image="us-central1-docker.pkg.dev/mlops-codelab-440409/mlops-airflow-repo/inference@sha256:e8d7a7cb897165f0ef484d2e6b7669df6b2c053bef3497327beb66a3b0da72f8",
+            image="us-central1-docker.pkg.dev/{{ var.value.GCP_PROJECT_ID }}/mlops-airflow-repo/inference:latest",
             name="model-serving",
             service_account_name="airflow-mlops-sa",
             container_resources=k8s_models.V1ResourceRequirements(
