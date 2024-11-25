@@ -4,7 +4,7 @@ from google.cloud import storage
 
 KAGGLE_USERNAME = os.getenv("KAGGLE_USERNAME")
 KAGGLE_KEY = os.getenv("KAGGLE_KEY")
-GCS_BUCKET = os.getenv("GCS_BUCKET")
+BUCKET_DATA_NAME = os.getenv("BUCKET_DATA_NAME")
 
 def upload_blob(bucket_name, source_file_name, destination_blob_name):
     """Uploads a file to the bucket."""
@@ -21,4 +21,4 @@ print("Path to dataset files:", path)
 destination_blob_name = "rotten_tomatoes_movie_reviews.csv"
 source_file_name = f"{path}/{destination_blob_name}"
 
-upload_blob(GCS_BUCKET, source_file_name, destination_blob_name)
+upload_blob(BUCKET_DATA_NAME, source_file_name, destination_blob_name)
