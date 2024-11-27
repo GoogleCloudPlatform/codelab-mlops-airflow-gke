@@ -68,7 +68,24 @@ spec:
         - name: server-port
           containerPort: 8000
         env:
-        # HuggingFace access token as k8s secret
+        - name: EXPERIMENT
+          value: ""
+        - name: MLFLOW_ENABLE
+          value: "false"
+        - name: MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING
+          value: "false"
+        - name: MLFLOW_TRACKING_URI
+          value: ""
+        - name: MODEL_NAME 
+          value: "google/gemma-2-9b-it"
+        - name: TRAINING_DATASET_BUCKET
+          value: "finetuning-data-bucket"
+        - name: TRAINING_DATA_PATH
+          value: "prepared_data.jsonl"
+        - name: NEW_MODEL
+          value: "gemma-finetuned"
+        - name: MODEL_PATH
+          value: "/model-data"
         - name: HF_TOKEN
           valueFrom:
             secretKeyRef:

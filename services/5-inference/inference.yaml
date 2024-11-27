@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: finetuned-gemma-deployment
+  name: inference-deployment
   namespace: mlops
 spec:
   replicas: 1
@@ -14,45 +14,62 @@ spec:
         app: gemma-server
         ai.gke.io/model: gemma-2b
         ai.gke.io/inference-server: vllm
-        examples.ai.gke.io/source: user-guide
+      annotations:
+        gke-gcsfuse/volumes: "true"
     spec:
-      serviceAccountName: finetuning-service-sa  # Ensure the service account has GCS access permissions
+      serviceAccountName: finetuning-service-sa  
+      tolerations:
+      - key: "nvidia.com/gpu"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "on-demand"
+        value: "true"
+        operator: "Equal"
+        effect: "NoSchedule" 
       containers:
       - name: inference-server
-        image: us-docker.pkg.dev/vertex-ai/vertex-vision-model-garden-dockers/pytorch-vllm-serve:20241101_0916_RC00
+        image: us-central1-docker.pkg.dev/mlops-airflow2/llm-finetuning/inference-service:latest
         ports:
         - containerPort: 8000
         resources:
-          requests:
+          requests:  # Add resource requests
             cpu: "2"
-            memory: "7Gi"
-            ephemeral-storage: "10Gi"
-            nvidia.com/gpu: 1
+            memory: "25Gi"
+            ephemeral-storage: "25Gi"
+            nvidia.com/gpu: "2" 
           limits:
             cpu: "2"
-            memory: "7Gi"
-            ephemeral-storage: "10Gi"
-            nvidia.com/gpu: 1
+            memory: "25Gi"
+            ephemeral-storage: "25Gi"
+            nvidia.com/gpu: "2"  
         command: ["/bin/sh", "-c"]
         args:
         - |
-          pip install bitsandbytes>=0.44.0 && \
           mkdir -p /finetuned_model && \
-          gsutil cp -r gs://finetuning-data-bucket/fine_tuned_model/* /finetuned_model/ && \  
-          python3 -m vllm.entrypoints.api_server --model=/finetuned_model --tokenizer=/finetuned_model 
-        env:
-        - name: HUGGING_FACE_HUB_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: hf-secret
-              key: HUGGING_FACE_TOKEN
+          gsutil cp -r gs://finetuning-data-bucket/model-gemma2/experiment/* /app/ && \
+          python3 -m vllm.entrypoints.api_server --model=/app --tokenizer=/app --tensor-parallel-size=2
         volumeMounts:
         - mountPath: /dev/shm
           name: dshm
+        - name: gcs-fuse-csi-ephemeral
+          mountPath: /model-data
+          readOnly: true  # Mount as read-only for inference
       volumes:
       - name: dshm
         emptyDir:
           medium: Memory
+      - name: gcs-fuse-csi-ephemeral
+        csi:
+          driver: gcsfuse.csi.storage.gke.io
+          volumeAttributes:
+            bucketName: "finetuning-data-bucket"  # Replace with your bucket name
+            # Add GCS Fuse options
+            mountOptions: "implicit-dirs,file-cache:enable-parallel-downloads:true,file-cache:max-parallel-downloads:-1"
+            fileCacheCapacity: "20Gi"
+            fileCacheForRangeRead: "true"
+            metadataStatCacheCapacity: "-1"
+            metadataTypeCacheCapacity: "-1"
+            metadataCacheTTLSeconds: "-1"
       nodeSelector:
         cloud.google.com/gke-accelerator: nvidia-l4
 ---
@@ -60,11 +77,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: llm-service
+  namespace: mlops
 spec:
   selector:
     app: gemma-server
   type: ClusterIP
   ports:
-    - protocol: TCP
-      port: 8000
-      targetPort: 8000
+  - protocol: TCP
+    port: 8000
+    targetPort: 8000

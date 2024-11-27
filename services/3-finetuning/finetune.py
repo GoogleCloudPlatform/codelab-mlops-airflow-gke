@@ -1,59 +1,71 @@
+import datasets
 import os
 import torch
-from datasets import load_dataset
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    BitsAndBytesConfig,
-    TrainingArguments
-)
-from peft import LoraConfig
+import transformers
+from accelerate import Accelerator
+from datasets import Dataset, load_dataset, load_from_disk
+from peft import LoraConfig, PeftModel
 
-from trl import SFTTrainer
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from trl import DataCollatorForCompletionOnlyLM, SFTConfig, SFTTrainer
+import torch.distributed as dist
 from google.cloud import storage
 
-# Configuration Parameters
-BUCKET_DATA_NAME = os.getenv("BUCKET_DATA_NAME")
-PREPARED_DATASET_NAME = os.getenv("PREPARED_DATA_URL", "prepared_data.jsonl")
+# The bucket which contains the training data
+training_data_bucket = os.environ["TRAINING_DATASET_BUCKET"]
 
-NEW_MODEL_NAME = os.getenv("NEW_MODEL_NAME", "fine_tuned_model")
-MODEL_ID = os.getenv("MODEL_ID", "google/gemma-2b")
+training_data_path = os.environ["TRAINING_DATASET_PATH"]
 
-PREPARED_DATASET_URL = f"gs://{BUCKET_DATA_NAME}/{PREPARED_DATASET_NAME}"
+# The model that you want to train from the Hugging Face hub
+model_name = os.environ["MODEL_NAME"]
+
+# Fine-tuned model name
+new_model = os.environ["NEW_MODEL"]
+
+# The root path of where the fine-tuned model will be saved
+save_model_path = os.environ["MODEL_PATH"]
+# Load tokenizer
+print("Loading tokenizer...")
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+tokenizer.pad_token = tokenizer.eos_token
+tokenizer.padding_side = "right" # Fix weird overflow issue with fp16 training
+print("Tokenizer loaded successfully!")
+
+EOS_TOKEN = tokenizer.eos_token
+dataset = load_dataset(
+    "json", data_files=f"gs://{training_data_bucket}/{training_data_path}", split="train")
+print(dataset)
+
+# Data formatting necessary?
+################################################################################
+# QLoRA parameters
+################################################################################
 
 # LoRA attention dimension
-lora_r = int(os.getenv("LORA_R", 4))
+lora_r = int(os.getenv("LORA_R", "8"))
 
 # Alpha parameter for LoRA scaling
-lora_alpha = int(os.getenv("LORA_ALPHA", 8))
+lora_alpha = int(os.getenv("LORA_ALPHA", "16"))
 
 # Dropout probability for LoRA layers
-#LORA_DROPOUT = float(os.getenv("LORA_DROPOUT", 0.1))
-lora_dropout = 0.1
+lora_dropout = float(os.getenv("LORA_DROPOUT", "0.1"))
 
-# Activate 4-bit precision base model loading
-use_4bit = True
+################################################################################
+# TrainingArguments parameters
+################################################################################
 
-# Compute dtype for 4-bit base models
-bnb_4bit_compute_dtype = "float16"
+# Number of training epochs
+num_train_epochs = int(os.getenv("EPOCHS", 1))
 
-# Quantization type (fp4 or nf4)
-bnb_4bit_quant_type = "nf4"
+# Enable fp16/bf16 training (set bf16 to True with an A100)
+fp16 = False
+bf16 = False
 
-# Activate nested quantization for 4-bit base models (double quantization)
-use_nested_quant = False
-
-output_dir = "./output"
-num_train_epochs = int(os.getenv("NUM_TRAIN_EPOCHS", 1))
-
-# Enable fp16 training 
-fp16 = True
-
-per_device_train_batch_size = int(os.getenv("PER_DEVICE_TRAIN_BATCH_SIZE", "1"))
+# Batch size per GPU for training
+per_device_train_batch_size = int(os.getenv("TRAIN_BATCH_SIZE", "1"))
 
 # Batch size per GPU for evaluation
-per_device_eval_batch_size = int(os.getenv("EVAL_BATCH_SIZE", "2"))
-
+per_device_eval_batch_size = 1
 # Number of update steps to accumulate the gradients for
 gradient_accumulation_steps = int(os.getenv("GRADIENT_ACCUMULATION_STEPS", "1"))
 
@@ -85,11 +97,21 @@ warmup_ratio = 0.03
 # Saves memory and speeds up training considerably
 group_by_length = True
 
+# Save strategy: steps, epoch, no
+save_strategy = os.getenv("CHECKPOINT_SAVE_STRATEGY", "steps")
+
+# Save total limit of checkpoints
+save_total_limit = int(os.getenv("CHECKPOINT_SAVE_TOTAL_LIMIT", "5"))
+
 # Save checkpoint every X updates steps
-save_steps = 0
+save_steps = int(os.getenv("CHECKPOINT_SAVE_STEPS", "1000"))
 
 # Log every X updates steps
-logging_steps = int(os.getenv("LOGGING_STEPS", "50"))
+logging_steps = 50
+
+################################################################################
+# SFT parameters
+################################################################################
 
 # Maximum sequence length to use
 max_seq_length = int(os.getenv("MAX_SEQ_LENGTH", "512"))
@@ -97,81 +119,75 @@ max_seq_length = int(os.getenv("MAX_SEQ_LENGTH", "512"))
 # Pack multiple short examples in the same input sequence to increase efficiency
 packing = False
 
-# Load the entire model on the GPU 0
-device_map = {'':torch.cuda.current_device()}
+# Load base model
+print(f"Loading base model started")
 
-# Load the prepared dataset from GCS
-print(f"Loading dataset from {PREPARED_DATASET_URL}...")
-dataset = load_dataset("json", data_files=PREPARED_DATASET_URL, split="train")
-print("Dataset loaded successfully.")
-
-# Load tokenizer and model with QLoRA configuration
-compute_dtype = getattr(torch, bnb_4bit_compute_dtype)
-
-bnb_config = BitsAndBytesConfig(
-    load_in_4bit=use_4bit,
-    bnb_4bit_quant_type=bnb_4bit_quant_type,
-    bnb_4bit_compute_dtype=compute_dtype,
-    bnb_4bit_use_double_quant=use_nested_quant,
-)
-
-# Check GPU compatibility with bfloat16
-if compute_dtype == torch.float16 and use_4bit:
-    major, _ = torch.cuda.get_device_capability()
-    if major >= 8:
-        print("=" * 80)
-        print("Your GPU supports bfloat16")
-        print("=" * 80)
-
-# Load the model
-print("Loading model...")
 model = AutoModelForCausalLM.from_pretrained(
-    MODEL_ID,
-    quantization_config=bnb_config,
-    device_map=device_map,
-    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+    attn_implementation="eager",
+    pretrained_model_name_or_path=model_name,
+    torch_dtype=torch.float16,
 )
 model.config.use_cache = False
 model.config.pretraining_tp = 1
-print("Model loaded successfully.")
+print("Loading base model completed")
 
-# Load tokenizer
-print("Loading tokenizer...")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=True)
-tokenizer.pad_token = tokenizer.eos_token
-tokenizer.padding_side = "right" # Fix weird overflow issue with fp16 training
-print("Tokenizer loaded successfully!")
-
-# Configure LoRA for fine-tuning
+print(f"Configuring fine tuning started")
+# Load LoRA configuration
 peft_config = LoraConfig(
     lora_alpha=lora_alpha,
     lora_dropout=lora_dropout,
     r=lora_r,
     bias="none",
     task_type="CAUSAL_LM",
-    target_modules=["q_proj", "v_proj"]
+    target_modules=[
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj",
+        "gate_proj",
+        "up_proj",
+        "down_proj",
+    ],
 )
 
 # Set training parameters
-training_arguments = TrainingArguments(
-    output_dir=output_dir,
-    num_train_epochs=num_train_epochs,
-    per_device_train_batch_size=per_device_train_batch_size,
-    gradient_accumulation_steps=gradient_accumulation_steps,
-    optim=optim,
-    save_steps=save_steps,
-    logging_steps=logging_steps,
-    learning_rate=learning_rate,
-    weight_decay=weight_decay,
-    fp16=fp16,
-    max_grad_norm=max_grad_norm,
-    max_steps=max_steps,
-    warmup_ratio=warmup_ratio,
-    group_by_length=group_by_length,
-    lr_scheduler_type=lr_scheduler_type,
-)
+training_arguments = SFTConfig(
+        bf16=bf16,
+        dataset_kwargs={
+            "add_special_tokens": False,  # We template with special tokens
+            "append_concat_token": False,  # No need to add additional separator token
+        },
+        dataset_text_field="text",
+        disable_tqdm=True,
+        fp16=fp16,
+        gradient_accumulation_steps=gradient_accumulation_steps,
+        gradient_checkpointing=gradient_checkpointing,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
+        group_by_length=group_by_length,
+        log_on_each_node=False,
+        logging_steps=logging_steps,
+        learning_rate=learning_rate,
+        lr_scheduler_type=lr_scheduler_type,
+        max_grad_norm=max_grad_norm,
+        max_seq_length=max_seq_length,
+        max_steps=max_steps,
+        num_train_epochs=num_train_epochs,
+        optim=optim,
+        output_dir=save_model_path,
+        packing=packing,
+        per_device_train_batch_size=per_device_train_batch_size,
+        save_strategy=save_strategy,
+        save_steps=save_steps,
+        save_total_limit=save_total_limit,
+        warmup_ratio=warmup_ratio,
+        weight_decay=weight_decay,
+    )
+
+print(f"Configuring fine tuning completed")
+
 
 # Initialize the SFTTrainer
+print(f"Creating trainer started")
 trainer = SFTTrainer(
     model=model,
     train_dataset=dataset,
@@ -183,27 +199,49 @@ trainer = SFTTrainer(
     packing=packing,
 )
 
+print(f"Creating trainer completed")
+
 # Fine-tune the model
 print("Starting fine-tuning...")
 trainer.train()
 print("Fine-tuning completed.")
 
-# Save the model and tokenizer locally before uploading
-model.save_pretrained(output_dir)
-tokenizer.save_pretrained(output_dir)
+print("Saving new model started")
+trainer.model.save_pretrained(new_model)
+print("Saving new model completed")
 
-# Function to upload the fine-tuned model to GCS
-def upload_to_gcs(bucket_name, model_dir):
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-    for root, _, files in os.walk(model_dir):
-        for file in files:
-            local_file_path = os.path.join(root, file)
-            gcs_file_path = os.path.relpath(local_file_path, model_dir)
-            blob = bucket.blob(os.path.join(NEW_MODEL_NAME, gcs_file_path))  # Use new_model_name
-            blob.upload_from_filename(local_file_path)
-            print(f"Uploaded {local_file_path} to gs://{bucket_name}/{NEW_MODEL_NAME}/{gcs_file_path}")
+print(f"Merging the new model with base model started")
+# Reload model in FP16 and merge it with LoRA weights
+base_model = AutoModelForCausalLM.from_pretrained(
+    low_cpu_mem_usage=True,
+    pretrained_model_name_or_path=model_name,
+    return_dict=True,
+    torch_dtype=torch.float16,
+)
 
-# Upload the fine-tuned model and tokenizer to GCS
-upload_to_gcs(BUCKET_DATA_NAME, output_dir)
-print(f"Fine-tuned model {NEW_MODEL_NAME} successfully uploaded to GCS.")
+model = PeftModel.from_pretrained(
+    model=base_model,
+    model_id=new_model,
+)
+model = model.merge_and_unload()
+
+print(f"Merging the new model with base model completed")
+
+accelerator = Accelerator()
+
+print(f"Accelerate unwrap model started")
+unwrapped_model = accelerator.unwrap_model(model)
+print(f"Accelerate unwrap model completed")
+
+print(f"Save unwrapped model started")
+unwrapped_model.save_pretrained(
+    is_main_process=accelerator.is_main_process,
+    save_directory=save_model_path,
+    save_function=accelerator.save,
+)
+print(f"Save unwrapped model completed")
+
+print(f"Save new tokenizer started")
+if accelerator.is_main_process:
+    tokenizer.save_pretrained(save_model_path)
+print(f"Save new tokenizer completed")

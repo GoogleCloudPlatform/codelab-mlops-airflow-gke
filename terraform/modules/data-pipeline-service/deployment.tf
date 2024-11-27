@@ -71,7 +71,7 @@ spec:
         - name: HF_TOKEN
           valueFrom:
             secretKeyRef:
-              name: hf-demo
+              name: hf-secret
               key: HUGGING_FACE_TOKEN
       restartPolicy: Never
   backoffLimit: 3  # Number of retries if the job fails
