@@ -56,8 +56,8 @@ with DAG(dag_id="mlops-dag",
             service_account_name="airflow-mlops-sa",
             startup_timeout_seconds=600,
             container_resources=k8s_models.V1ResourceRequirements(
-                    requests={"cpu": "1", "memory": "8Gi", "nvidia.com/gpu": "1"},
-                    limits={"cpu": "2", "memory": "16Gi", "nvidia.com/gpu": "1"}
+                    requests={"nvidia.com/gpu": "1"},
+                    limits={"nvidia.com/gpu": "1"}
             ),
             env_vars={
                     "BUCKET_DATA_NAME":BUCKET_DATA_NAME,
@@ -78,8 +78,8 @@ with DAG(dag_id="mlops-dag",
             name="model-serving",
             service_account_name="airflow-mlops-sa",
             container_resources=k8s_models.V1ResourceRequirements(
-                    requests={"cpu": "1", "memory": "8Gi", "nvidia.com/gpu": "1"},
-                    limits={"cpu": "2", "memory": "16Gi", "nvidia.com/gpu": "1"}
+                    requests={"nvidia.com/gpu": "2"},
+                    limits={"nvidia.com/gpu": "2"}
             ),
             env_vars={
                     "BUCKET_DATA_NAME":BUCKET_DATA_NAME,
