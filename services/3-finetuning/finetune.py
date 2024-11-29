@@ -12,18 +12,18 @@ import torch.distributed as dist
 from google.cloud import storage
 
 # The bucket which contains the training data
-training_data_bucket = os.environ["TRAINING_DATASET_BUCKET"]
+BUCKET_DATA_NAME = os.environ["BUCKET_DATA_NAME"]
 
-training_data_path = os.environ["TRAINING_DATASET_PATH"]
-
-# The model that you want to train from the Hugging Face hub
-model_name = os.environ["MODEL_NAME"]
+PREPARED_DATA_URL = os.getenv("PREPARED_DATA_URL", "prepared_data.jsonl")
 
 # Fine-tuned model name
-new_model = os.environ["NEW_MODEL"]
+new_model = os.getenv("NEW_MODEL_NAME", "fine_tuned_model")
+
+# The model that you want to train from the Hugging Face hub
+model_name = os.getenv("MODEL_ID", "google/gemma-2-9b-it")
 
 # The root path of where the fine-tuned model will be saved
-save_model_path = os.environ["MODEL_PATH"]
+save_model_path = os.getenv("MODEL_PATH", "./output")
 # Load tokenizer
 print("Loading tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
@@ -33,7 +33,7 @@ print("Tokenizer loaded successfully!")
 
 EOS_TOKEN = tokenizer.eos_token
 dataset = load_dataset(
-    "json", data_files=f"gs://{training_data_bucket}/{training_data_path}", split="train")
+    "json", data_files=f"gs://{BUCKET_DATA_NAME}/{PREPARED_DATA_URL}", split="train")
 print(dataset)
 
 # Data formatting necessary?
@@ -245,3 +245,19 @@ print(f"Save new tokenizer started")
 if accelerator.is_main_process:
     tokenizer.save_pretrained(save_model_path)
 print(f"Save new tokenizer completed")
+
+# Function to upload the fine-tuned model to GCS
+def upload_to_gcs(bucket_name, model_dir):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    for root, _, files in os.walk(model_dir):
+        for file in files:
+            local_file_path = os.path.join(root, file)
+            gcs_file_path = os.path.relpath(local_file_path, model_dir)
+            blob = bucket.blob(os.path.join(new_model, gcs_file_path))  # Use new_model_name
+            blob.upload_from_filename(local_file_path)
+            print(f"Uploaded {local_file_path} to gs://{bucket_name}/{new_model}/{gcs_file_path}")
+
+# Upload the fine-tuned model and tokenizer to GCS
+upload_to_gcs(BUCKET_DATA_NAME, save_model_path)
+print(f"Fine-tuned model {new_model} successfully uploaded to GCS.")
