@@ -54,7 +54,7 @@ spec:
         csi:
           driver: gcsfuse.csi.storage.gke.io
           volumeAttributes:
-            bucketName: BUCKET_DAGS_NAME
+            bucketName: BUCKET_DATA_NAME
             mountOptions: "implicit-dirs,file-cache:enable-parallel-downloads:true,file-cache:max-parallel-downloads:-1"
             fileCacheCapacity: "20Gi"
             fileCacheForRangeRead: "true"

@@ -4,9 +4,11 @@ from os import path
 
 from airflow import DAG
 from airflow.models import Variable
+from airflow.operators.python import PythonOperator
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 
-from kubernetes import client, config, models as k8s_models
+from kubernetes import client, config
+from kubernetes.client import models
 from kubernetes.client.rest import ApiException
 
 GCP_PROJECT_ID = Variable.get("GCP_PROJECT_ID")
@@ -108,7 +110,7 @@ with DAG(dag_id="mlops-dag",
             name="fine-tuning",
             service_account_name="airflow-mlops-sa",
             startup_timeout_seconds=600,
-            container_resources=k8s_models.V1ResourceRequirements(
+            container_resources=models.V1ResourceRequirements(
                     requests={"nvidia.com/gpu": "1"},
                     limits={"nvidia.com/gpu": "1"}
             ),
