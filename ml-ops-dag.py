@@ -18,55 +18,46 @@ KAGGLE_USERNAME = Variable.get("KAGGLE_USERNAME")
 KAGGLE_KEY = Variable.get("KAGGLE_KEY")
 JOB_NAMESPACE = Variable.get("JOB_NAMESPACE", default_var="airflow")
 
-def delete_deployment():
-    config.load_incluster_config()
-
-    try:
-        k8s_apps_v1 = client.AppsV1Api()
-        k8s_apps_v1.delete_namespaced_deployment(
-                namespace="airflow",
-                name="inference-deployment",
-                body=client.V1DeleteOptions(
-                propagation_policy="Foreground", grace_period_seconds=5
-                )
-        )
-        print("Deployment inference-deployment deleted")
-    except ApiException:
-        print("No deployment found")
-
-def delete_service():
-    config.load_incluster_config()
-
-    try:
-        k8s_apps_v1 = client.AppsV1Api()
-        k8s_apps_v1.delete_namespaced_service(
-                namespace="airflow",
-                name="llm-service",
-                body=client.V1DeleteOptions(
-                propagation_policy="Foreground", grace_period_seconds=5
-                )
-        )
-        print("Deployment inference-deployment deleted")
-    except ApiException:
-        print("No deployment found")
-
 def model_serving():
     config.load_incluster_config()
+    k8s_apps_v1 = client.AppsV1Api()
+    k8s_core_v1 = client.CoreV1Api()
 
+    while True:
+        try:
+            k8s_apps_v1.delete_namespaced_deployment(
+                    namespace="airflow",
+                    name="inference-deployment",
+                    body=client.V1DeleteOptions(
+                    propagation_policy="Foreground", grace_period_seconds=5
+                    )
+            )
+        except ApiException:
+            break
+    print("Deployment inference-deployment deleted")
+    
     with open(path.join(path.dirname(__file__), "inference.yaml")) as f:
         dep = yaml.safe_load(f)
-        k8s_apps_v1 = client.AppsV1Api()
         resp = k8s_apps_v1.create_namespaced_deployment(
             body=dep, namespace="airflow")
         print(f"Deployment created. Status='{resp.metadata.name}'")
-
-def expose_model():
-    config.load_incluster_config()
+    
+    while True:
+        try:
+            k8s_core_v1.delete_namespaced_service(
+                    namespace="airflow",
+                    name="llm-service",
+                    body=client.V1DeleteOptions(
+                    propagation_policy="Foreground", grace_period_seconds=5
+                    )
+            )
+        except ApiException:
+            break
+    print("Service llm-service deleted")
 
     with open(path.join(path.dirname(__file__), "inference-service.yaml")) as f:
         dep = yaml.safe_load(f)
-        k8s_apps_v1 = client.CoreV1Api()
-        resp = k8s_apps_v1.create_namespaced_service(
+        resp = k8s_core_v1.create_namespaced_service(
             body=dep, namespace="airflow")
         print(f"Service created. Status='{resp.metadata.name}'")
 
@@ -121,24 +112,9 @@ with DAG(dag_id="mlops-dag",
         )
 
         # Step 4: Run GKE Deployment for model serving
-        delete_deployment = PythonOperator(
-            task_id="delete_deployment",
-            python_callable=delete_deployment
-        )
-
         model_serving = PythonOperator(
             task_id="model_serving",
             python_callable=model_serving
         )
 
-        delete_service = PythonOperator(
-            task_id="delete_service",
-            python_callable=delete_service
-        )
-
-        expose_model = PythonOperator(
-            task_id="expose_model",
-            python_callable=expose_model
-        )
-
-        dataset_download >> data_preparation >> fine_tuning >> delete_deployment >> model_serving >> delete_service >> expose_model
+        dataset_download >> data_preparation >> fine_tuning >> model_serving
