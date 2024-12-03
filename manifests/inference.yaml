@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: inference-deployment
-  namespace: mlops
+  namespace: airflow
 spec:
   replicas: 1
   selector:
@@ -17,7 +17,7 @@ spec:
       annotations:
         gke-gcsfuse/volumes: "true"
     spec:
-      serviceAccountName: finetuning-service-sa  
+      serviceAccountName: airflow-mlops-sa
       tolerations:
       - key: "nvidia.com/gpu"
         operator: "Exists"
@@ -25,35 +25,27 @@ spec:
       - key: "on-demand"
         value: "true"
         operator: "Equal"
-        effect: "NoSchedule" 
+        effect: "NoSchedule"
       containers:
       - name: inference-server
-        image: us-central1-docker.pkg.dev/mlops-airflow2/llm-finetuning/inference-service:latest
+        image: vllm/vllm-openai:latest
         ports:
         - containerPort: 8000
         resources:
-          requests:  # Add resource requests
-            cpu: "2"
-            memory: "25Gi"
-            ephemeral-storage: "25Gi"
-            nvidia.com/gpu: "2" 
+          requests:
+            nvidia.com/gpu: "2"
           limits:
-            cpu: "2"
-            memory: "25Gi"
-            ephemeral-storage: "25Gi"
-            nvidia.com/gpu: "2"  
+            nvidia.com/gpu: "2"
         command: ["/bin/sh", "-c"]
         args:
         - |
-          mkdir -p /finetuned_model && \
-          gsutil cp -r gs://finetuning-data-bucket/model-gemma2/experiment/* /app/ && \
-          python3 -m vllm.entrypoints.api_server --model=/app --tokenizer=/app --tensor-parallel-size=2
+          python3 -m vllm.entrypoints.api_server --model=/modeldata/fine_tuned_model --tokenizer=/modeldata/fine_tuned_model --tensor-parallel-size=2
         volumeMounts:
         - mountPath: /dev/shm
           name: dshm
         - name: gcs-fuse-csi-ephemeral
-          mountPath: /model-data
-          readOnly: true  # Mount as read-only for inference
+          mountPath: /modeldata
+          readOnly: true
       volumes:
       - name: dshm
         emptyDir:
@@ -62,8 +54,7 @@ spec:
         csi:
           driver: gcsfuse.csi.storage.gke.io
           volumeAttributes:
-            bucketName: "finetuning-data-bucket"  # Replace with your bucket name
-            # Add GCS Fuse options
+            bucketName: BUCKET_DAGS_NAME
             mountOptions: "implicit-dirs,file-cache:enable-parallel-downloads:true,file-cache:max-parallel-downloads:-1"
             fileCacheCapacity: "20Gi"
             fileCacheForRangeRead: "true"
@@ -72,17 +63,3 @@ spec:
             metadataCacheTTLSeconds: "-1"
       nodeSelector:
         cloud.google.com/gke-accelerator: nvidia-l4
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: llm-service
-  namespace: mlops
-spec:
-  selector:
-    app: gemma-server
-  type: ClusterIP
-  ports:
-  - protocol: TCP
-    port: 8000
-    targetPort: 8000
