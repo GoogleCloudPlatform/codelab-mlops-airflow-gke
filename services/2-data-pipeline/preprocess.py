@@ -4,7 +4,7 @@ import gcsfs
 import json
 from datasets import Dataset
 
-# Constants - if environment variables are not provided, take given defaults
+# Environment variables
 PROJECT_ID = os.getenv("PROJECT_ID")
 BUCKET_DATA_NAME = os.getenv("BUCKET_DATA_NAME")
 
@@ -19,6 +19,15 @@ PREPARED_DATASET_URL = f"gs://{BUCKET_DATA_NAME}/{PREPARED_DATASET_NAME}"
 print(f"Loading dataset from {DATASET_URL}...")
 
 def transform(data):
+    """
+    Transforms a row of the DataFrame into the desired format for fine-tuning.
+
+    Args:
+      data: A pandas Series representing a row of the DataFrame.
+
+    Returns:
+      A dictionary containing the formatted text.
+    """ 
     question = f"Review analysis for movie '{data['id']}'"
     context = data['reviewText']
     answer = data['scoreSentiment']
@@ -27,7 +36,7 @@ def transform(data):
 
 try:
     df = pd.read_csv(DATASET_URL, nrows=DATASET_LIMIT)
-    print("Dataset loaded successfully.")
+    print(f"Dataset loaded successfully.")
 
     # Drop rows with NaN values in relevant columns
     df = df.dropna(subset=['id', 'reviewText', 'scoreSentiment'])
@@ -38,9 +47,6 @@ try:
     # Convert transformed data to a DataFrame and then to a Hugging Face Dataset
     transformed_df = pd.DataFrame(transformed_data)
     dataset = Dataset.from_pandas(transformed_df)
-
-    # Print out one preprocessed sample data point
-    print(dataset[0])
 
     # Save the prepared dataset to JSON lines format
     with gcsfs.GCSFileSystem(project=PROJECT_ID).open(PREPARED_DATASET_URL, 'w') as f:
