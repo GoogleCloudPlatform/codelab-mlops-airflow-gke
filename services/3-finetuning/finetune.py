@@ -11,18 +11,14 @@ from trl import DataCollatorForCompletionOnlyLM, SFTConfig, SFTTrainer
 import torch.distributed as dist
 from google.cloud import storage
 
-# The bucket which contains the training data
+# Environment variables
 BUCKET_DATA_NAME = os.environ["BUCKET_DATA_NAME"]
-
 PREPARED_DATA_URL = os.getenv("PREPARED_DATA_URL", "prepared_data.jsonl")
-
-# Fine-tuned model name
+# Finetuned model name
 new_model = os.getenv("NEW_MODEL_NAME", "fine_tuned_model")
-
-# The model that you want to train from the Hugging Face hub
+# Base model from the Hugging Face hub
 model_name = os.getenv("MODEL_ID", "google/gemma-2-9b-it")
-
-# The root path of where the fine-tuned model will be saved
+# Root path for saving the finetuned model
 save_model_path = os.getenv("MODEL_PATH", "./output")
 # Load tokenizer
 print("Loading tokenizer...")
@@ -31,97 +27,75 @@ tokenizer.pad_token = tokenizer.eos_token
 tokenizer.padding_side = "right" # Fix weird overflow issue with fp16 training
 print("Tokenizer loaded successfully!")
 
+# Load dataset
 EOS_TOKEN = tokenizer.eos_token
 dataset = load_dataset(
     "json", data_files=f"gs://{BUCKET_DATA_NAME}/{PREPARED_DATA_URL}", split="train")
 print(dataset)
 
-# Data formatting necessary?
 ################################################################################
-# QLoRA parameters
+# LoRA parameters
 ################################################################################
-
 # LoRA attention dimension
 lora_r = int(os.getenv("LORA_R", "8"))
-
 # Alpha parameter for LoRA scaling
 lora_alpha = int(os.getenv("LORA_ALPHA", "16"))
-
 # Dropout probability for LoRA layers
 lora_dropout = float(os.getenv("LORA_DROPOUT", "0.1"))
 
 ################################################################################
 # TrainingArguments parameters
 ################################################################################
-
 # Number of training epochs
 num_train_epochs = int(os.getenv("EPOCHS", 1))
-
-# Enable fp16/bf16 training (set bf16 to True with an A100)
+# Set fp16/bf16 training (set bf16 to True with an A100)
 fp16 = False
 bf16 = False
-
 # Batch size per GPU for training
 per_device_train_batch_size = int(os.getenv("TRAIN_BATCH_SIZE", "1"))
-
 # Batch size per GPU for evaluation
 per_device_eval_batch_size = 1
 # Number of update steps to accumulate the gradients for
 gradient_accumulation_steps = int(os.getenv("GRADIENT_ACCUMULATION_STEPS", "1"))
-
 # Enable gradient checkpointing
 gradient_checkpointing = True
-
 # Maximum gradient normal (gradient clipping)
 max_grad_norm = 0.3
-
 # Initial learning rate (AdamW optimizer)
 learning_rate = 2e-4
-
 # Weight decay to apply to all layers except bias/LayerNorm weights
 weight_decay = 0.001
-
 # Optimizer to use
 optim = "paged_adamw_32bit"
-
 # Learning rate schedule
 lr_scheduler_type = "cosine"
-
 # Number of training steps (overrides num_train_epochs)
 max_steps = -1
-
 # Ratio of steps for a linear warmup (from 0 to learning rate)
 warmup_ratio = 0.03
 
 # Group sequences into batches with same length
 # Saves memory and speeds up training considerably
 group_by_length = True
-
 # Save strategy: steps, epoch, no
 save_strategy = os.getenv("CHECKPOINT_SAVE_STRATEGY", "steps")
-
 # Save total limit of checkpoints
 save_total_limit = int(os.getenv("CHECKPOINT_SAVE_TOTAL_LIMIT", "5"))
-
 # Save checkpoint every X updates steps
 save_steps = int(os.getenv("CHECKPOINT_SAVE_STEPS", "1000"))
-
 # Log every X updates steps
 logging_steps = 50
 
 ################################################################################
 # SFT parameters
 ################################################################################
-
 # Maximum sequence length to use
 max_seq_length = int(os.getenv("MAX_SEQ_LENGTH", "512"))
-
 # Pack multiple short examples in the same input sequence to increase efficiency
 packing = False
 
 # Load base model
 print(f"Loading base model started")
-
 model = AutoModelForCausalLM.from_pretrained(
     attn_implementation="eager",
     pretrained_model_name_or_path=model_name,
@@ -131,8 +105,8 @@ model.config.use_cache = False
 model.config.pretraining_tp = 1
 print("Loading base model completed")
 
+# Configure fine-tuning with LoRA
 print(f"Configuring fine tuning started")
-# Load LoRA configuration
 peft_config = LoraConfig(
     lora_alpha=lora_alpha,
     lora_dropout=lora_dropout,
@@ -154,8 +128,8 @@ peft_config = LoraConfig(
 training_arguments = SFTConfig(
         bf16=bf16,
         dataset_kwargs={
-            "add_special_tokens": False,  # We template with special tokens
-            "append_concat_token": False,  # No need to add additional separator token
+            "add_special_tokens": False,  
+            "append_concat_token": False, 
         },
         dataset_text_field="text",
         disable_tqdm=True,
@@ -201,17 +175,18 @@ trainer = SFTTrainer(
 
 print(f"Creating trainer completed")
 
-# Fine-tune the model
+# Finetune the model
 print("Starting fine-tuning...")
 trainer.train()
 print("Fine-tuning completed.")
 
+# Save the fine-tuned model
 print("Saving new model started")
 trainer.model.save_pretrained(new_model)
 print("Saving new model completed")
 
+# Merge LoRA weights with the base model
 print(f"Merging the new model with base model started")
-# Reload model in FP16 and merge it with LoRA weights
 base_model = AutoModelForCausalLM.from_pretrained(
     low_cpu_mem_usage=True,
     pretrained_model_name_or_path=model_name,
@@ -228,7 +203,6 @@ model = model.merge_and_unload()
 print(f"Merging the new model with base model completed")
 
 accelerator = Accelerator()
-
 print(f"Accelerate unwrap model started")
 unwrapped_model = accelerator.unwrap_model(model)
 print(f"Accelerate unwrap model completed")
@@ -246,8 +220,9 @@ if accelerator.is_main_process:
     tokenizer.save_pretrained(save_model_path)
 print(f"Save new tokenizer completed")
 
-# Function to upload the fine-tuned model to GCS
+# Upload the model to GCS
 def upload_to_gcs(bucket_name, model_dir):
+    """Uploads a directory to GCS."""
     storage_client = storage.Client()
     bucket = storage_client.bucket(bucket_name)
     for root, _, files in os.walk(model_dir):
@@ -256,7 +231,6 @@ def upload_to_gcs(bucket_name, model_dir):
             gcs_file_path = os.path.relpath(local_file_path, model_dir)
             blob = bucket.blob(os.path.join(new_model, gcs_file_path))  # Use new_model_name
             blob.upload_from_filename(local_file_path)
-            print(f"Uploaded {local_file_path} to gs://{bucket_name}/{new_model}/{gcs_file_path}")
 
 # Upload the fine-tuned model and tokenizer to GCS
 upload_to_gcs(BUCKET_DATA_NAME, save_model_path)
