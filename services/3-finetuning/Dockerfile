@@ -21,4 +21,4 @@ ENV MODEL_ID "google/gemma-2-9b-it"
 ENV GCS_BUCKET "finetuning-data-bucket"
  
 # Set the command to run the finetuning script with CUDA device
-CMD ["python3", "finetune.py"]
+CMD ["python", "finetune.py"]
