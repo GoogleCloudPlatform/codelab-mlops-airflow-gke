@@ -20,6 +20,7 @@ new_model = os.getenv("NEW_MODEL_NAME", "fine_tuned_model")
 model_name = os.getenv("MODEL_ID", "google/gemma-2-9b-it")
 # Root path for saving the finetuned model
 save_model_path = os.getenv("MODEL_PATH", "./output")
+
 # Load tokenizer
 print("Loading tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
