@@ -12,7 +12,7 @@ import torch.distributed as dist
 from google.cloud import storage
 
 # Environment variables
-BUCKET_DATA_NAME = os.getenv["BUCKET_DATA_NAME"]
+BUCKET_DATA_NAME = os.getenv("BUCKET_DATA_NAME")
 PREPARED_DATA_URL = os.getenv("PREPARED_DATA_URL", "prepared_data.jsonl")
 # Finetuned model name
 new_model = os.getenv("NEW_MODEL_NAME", "fine_tuned_model")
