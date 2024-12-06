@@ -8,4 +8,4 @@ RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r re
 
 COPY preprocess.py .
 
-CMD ["python", "preprocess.py"]
+CMD ["python", "data-preparation.py"]

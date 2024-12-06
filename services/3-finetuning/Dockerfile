@@ -13,12 +13,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 # Copy your finetune script into the container
-COPY finetune.py .
+COPY finetuning.py .
 
-# Set the environment variable to ensure output is flushed
-ENV PYTHONUNBUFFERED 1
-ENV MODEL_ID "google/gemma-2-9b-it"
-ENV GCS_BUCKET "finetuning-data-bucket"
- 
 # Set the command to run the finetuning script with CUDA device
-CMD ["python", "finetune.py"]
+CMD ["python", "finetuning.py"]

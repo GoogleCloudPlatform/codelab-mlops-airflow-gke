@@ -5,7 +5,7 @@ import json
 from datasets import Dataset
 
 # Environment variables
-PROJECT_ID = os.getenv("PROJECT_ID")
+GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 BUCKET_DATA_NAME = os.getenv("BUCKET_DATA_NAME")
 
 DATASET_NAME = os.getenv("DATASET_NAME", "rotten_tomatoes_movie_reviews.csv")
@@ -49,7 +49,7 @@ try:
     dataset = Dataset.from_pandas(transformed_df)
 
     # Save the prepared dataset to JSON lines format
-    with gcsfs.GCSFileSystem(project=PROJECT_ID).open(PREPARED_DATASET_URL, 'w') as f:
+    with gcsfs.GCSFileSystem(project=GCP_PROJECT_ID).open(PREPARED_DATASET_URL, 'w') as f:
         for item in dataset:
             f.write(json.dumps(item) + "\n")
 

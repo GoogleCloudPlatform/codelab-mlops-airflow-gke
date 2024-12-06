@@ -82,11 +82,11 @@ with DAG(dag_id="mlops-dag",
         data_preparation = KubernetesPodOperator(
             task_id="data_pipeline_task",
             namespace=JOB_NAMESPACE,
-            image="us-central1-docker.pkg.dev/{{ var.value.GCP_PROJECT_ID }}/mlops-airflow-repo/data-pipeline:latest",
+            image="us-central1-docker.pkg.dev/{{ var.value.GCP_PROJECT_ID }}/mlops-airflow-repo/data-preparation:latest",
             name="data-preparation",
             service_account_name="airflow-mlops-sa",
             env_vars={
-                    "PROJECT_ID":GCP_PROJECT_ID,
+                    "GCP_PROJECT_ID":GCP_PROJECT_ID,
                     "BUCKET_DATA_NAME":BUCKET_DATA_NAME,
                     "DATASET_LIMIT": "1000",
                     "HF_TOKEN":HF_TOKEN
