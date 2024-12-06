@@ -10,7 +10,7 @@ BUCKET_DATA_NAME = os.getenv("BUCKET_DATA_NAME")
 
 DATASET_NAME = os.getenv("DATASET_NAME", "rotten_tomatoes_movie_reviews.csv")
 PREPARED_DATASET_NAME = os.getenv("PREPARED_DATA_URL", "prepared_data.jsonl")
-DATASET_LIMIT = int(os.getenv("DATASET_LIMIT", "100"))  # Process a limited number of rows, used 100 during testing phase but can be increased
+DATASET_LIMIT = int(os.getenv("DATASET_LIMIT"))  # Process a limited number of rows, we use 1000 during testing phase but can be increased
 
 DATASET_URL = f"gs://{BUCKET_DATA_NAME}/{DATASET_NAME}"
 PREPARED_DATASET_URL = f"gs://{BUCKET_DATA_NAME}/{PREPARED_DATASET_NAME}"
