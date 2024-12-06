@@ -1,8 +1,7 @@
-accelerate==v1.0.1
+accelerate==1.1.1
 datasets==3.1.0
 gcsfs==2024.9.0
 peft==v0.13.2
 torch==2.5.1
-transformers==v4.46.1
+transformers==4.47.0
 trl==v0.11.4
-google-cloud-storage
