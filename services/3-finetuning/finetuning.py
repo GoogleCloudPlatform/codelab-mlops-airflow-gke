@@ -12,7 +12,7 @@ import torch.distributed as dist
 from google.cloud import storage
 
 # Environment variables
-BUCKET_DATA_NAME = os.environ["BUCKET_DATA_NAME"]
+BUCKET_DATA_NAME = os.getenv["BUCKET_DATA_NAME"]
 PREPARED_DATA_URL = os.getenv("PREPARED_DATA_URL", "prepared_data.jsonl")
 # Finetuned model name
 new_model = os.getenv("NEW_MODEL_NAME", "fine_tuned_model")
@@ -25,7 +25,7 @@ save_model_path = os.getenv("MODEL_PATH", "./output")
 print("Loading tokenizer...")
 tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 tokenizer.pad_token = tokenizer.eos_token
-tokenizer.padding_side = "right" # Fix weird overflow issue with fp16 training
+tokenizer.padding_side = "right"
 print("Tokenizer loaded successfully!")
 
 # Load dataset
@@ -159,7 +159,6 @@ training_arguments = SFTConfig(
     )
 
 print(f"Configuring fine tuning completed")
-
 
 # Initialize the SFTTrainer
 print(f"Creating trainer started")

@@ -16,4 +16,4 @@ RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r re
 COPY finetuning.py .
 
 # Set the command to run the finetuning script with CUDA device
-CMD ["python", "finetuning.py"]
+CMD ["python3", "finetuning.py"]
