@@ -12,7 +12,7 @@ spec:
     metadata:
       labels:
         app: gemma-server
-        ai.gke.io/model: gemma-2b
+        ai.gke.io/model: gemma-2-9b-it
         ai.gke.io/inference-server: vllm
       annotations:
         gke-gcsfuse/volumes: "true"
