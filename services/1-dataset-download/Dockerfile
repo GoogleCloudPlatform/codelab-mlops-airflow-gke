@@ -6,6 +6,6 @@ COPY requirements.txt .
 
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
-COPY dataset.py .
+COPY dataset-download.py .
 
-CMD ["python", "dataset.py"]
+CMD ["python", "dataset-download.py"]
