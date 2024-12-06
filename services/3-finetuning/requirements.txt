@@ -1,4 +1,5 @@
 accelerate==1.1.1
+bitsandbytes==0.45.0
 datasets==3.1.0
 gcsfs==2024.9.0
 peft==v0.13.2
